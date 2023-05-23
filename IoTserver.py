@@ -26,7 +26,8 @@ app = Flask(__name__)
 def weather():
 	t, d, date = asyncio.run(async_get_weather())
 	return {'temp':t, 
-			'desc':d}
+			'desc':d,
+			'date':date}
 
 
 # the endpoint for fetching current machine time
