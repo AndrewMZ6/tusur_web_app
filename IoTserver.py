@@ -7,7 +7,7 @@ import python_weather as pw
 from datetime import datetime
 
 
-# The coroutine is called to obtain weather
+# The coroutine is called to obtain weather. Called in "weather" endpoint
 async def async_get_weather():
 
 	async with pw.Client(unit=pw.METRIC) as cl:
@@ -20,6 +20,8 @@ async def async_get_weather():
 
 app = Flask(__name__)
 
+
+# the endpoint for fetching current weather
 @app.route("/weather")
 def weather():
 	t, d, date = asyncio.run(async_get_weather())
@@ -27,6 +29,7 @@ def weather():
 			'desc':d}
 
 
+# the endpoint for fetching current machine time
 @app.route("/time")
 def curr_time():
 	curr = datetime.now()
@@ -34,6 +37,7 @@ def curr_time():
 	return {'current_time/\n':current_time}
 
 
+# Testing request object properties for GET and POST methods
 @app.route('/test_req_get', methods=['GET'])
 def test_req_get():
 	print(f'request:\n{request}\n')
@@ -49,7 +53,7 @@ def test_req_get():
 	print(f"request.method:\n{request.method}\n")
 	print(f"request.view_args:\n{request.view_args}\n")
 	print(f"request.data:\n{request.data}\n")
-	return {5:1}
+	return {"flask_response":"OK"}
 
 
 @app.route('/test_req_post', methods=['POST'])
@@ -65,4 +69,7 @@ def test_req_post():
 	for i in request.values:
 		print(i)
 
-	return {5:1}
+	decoded_data = request.data.decode("utf-8")
+	print(f"decoded_data:\n{decoded_data}\n")
+
+	return {"flask_response":"OK"}
