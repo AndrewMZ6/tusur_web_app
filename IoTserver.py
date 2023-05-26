@@ -6,14 +6,9 @@ import asyncio
 import python_weather as pw
 from datetime import datetime
 import logging
-import wakeonlan as wl
+from wakeonlan import send_magic_packet
 import random
 import re
-
-
-#def parse_token_mac(data_to_parse:str) -> bool:
-
-
 
 token_db = ['ad34931a1b8984d54cc92a339f7a16946d65dc58c9704b9e472dc056e5eb4648',
 			'97ee79c42d41f01f8a89c11e17880676f01e792401fbb15158443b31a736d74f',
@@ -29,7 +24,6 @@ token_db = ['ad34931a1b8984d54cc92a339f7a16946d65dc58c9704b9e472dc056e5eb4648',
 
 # The coroutine is called to obtain weather. Called in "weather" endpoint
 async def async_get_weather():
-
 	async with pw.Client(unit=pw.METRIC) as cl:
 		weather = await cl.get('Tomsk')
 
@@ -45,6 +39,7 @@ app = Flask(__name__)
 @app.route("/weather", methods=['GET'])
 def weather():
 	t, d, date = asyncio.run(async_get_weather())
+
 	return {'temp':t, 
 			'desc':d,
 			'date':date}
@@ -56,47 +51,8 @@ def curr_time():
 	curr = datetime.now()
 	current_time = curr.strftime("%H:%M:%S")
 	d = {'current_server_time':current_time}
+
 	return d
-
-
-# Testing request object properties for GET and POST methods
-@app.route('/test_req_get', methods=['GET'])
-def test_req_get():
-	print(f'request:\n{request}\n')
-	print(f'dir(request):\n{dir(request)}\n')
-	print(f'request.args:\n{request.args}\n')
-	if request.args:
-		print(f"request.args['arg1']:\n{request.args['arg1']}\n")
-		print(f"dir(request.args):\n{dir(request.args)}\n")
-		print(f"request.args.keys():\n{request.args.keys()}\n")
-		print(f"dir(request.args.keys()):\n{dir(request.args.keys())}\n")
-		print(f"list(request.args.keys()):\n{list(request.args.keys())}\n")
-
-	print(f"request.method:\n{request.method}\n")
-	print(f"request.view_args:\n{request.view_args}\n")
-	print(f"request.data:\n{request.data}\n")
-	return {"flask_response":"OK"}
-
-
-@app.route('/test_req_post', methods=['POST'])
-def test_req_post():
-	print(f'request:\n{request}\n')
-	print(f'dir(request):\n{dir(request)}\n')
-	print(f'request.args:\n{request.args}\n')
-
-	print(f"request.method:\n{request.method}\n")
-	print(f"request.view_args:\n{request.view_args}\n")
-	print(f"request.data:\n{request.data}\n")
-	print(f"request.values:\n{request.values}\n")
-
-	#print(f"request.content_type:\n{request.content_type}\n")
-
-	decoded_data = request.data.decode("utf-8")
-	print(f"decoded_data:\n{decoded_data}\n")
-	logging.basicConfig(filename='example.log', encoding='utf-8', level=logging.DEBUG)
-	logging.debug(f'{decoded_data}')
-
-	return {"flask_response":"OK"}
 
 
 @app.route('/get_token', methods=['GET'])
@@ -104,34 +60,44 @@ def get_token():
 	rand_idx = random.randint(0, len(token_db)-1)
 	current_token = token_db[rand_idx]
 
-
 	return {"generated_token":f"{current_token}"}
 
 
 @app.route('/wake', methods=['POST'])
 def wake():
-	
 	decoded_data = request.data.decode("utf-8")
-	print(f"decoded_data:\n{decoded_data}\n")
 
+	# Parse request data
 	m = re.search(r'\?token=(.*)&mac=(.*)', decoded_data)
+
 	if m:
 		token, mac = m.groups()
+		mac_splitted = mac.split('-')
+
+		if (len(mac_splitted) != 6):
+			return {"server_response":"mac_address must contain 6 number pairs"}
+			
+		if token in token_db:
+			mac_joined = '.'.join(mac_splitted)
+
+			try:
+				send_magic_packet(mac_joined)
+			except Exception as er:
+				return {"server_response":f"{er}"}
+
+			return {"server_response": "execute wakeonlan"}
+		else:
+			return {"server_response":"your token is NOT valid"}
+
 	else:
 		return {"server_response":"couldn't parse the query"}
 
-	if token in token_db:
-		return {"server_response":"your token is valid",
-				"mac_address":f"{mac}"}
-	else:
-		return {"server_response":"your token is not valid",
-				"mac_address":f"{mac}"}
+	
 
 
 @app.route('/log_data', methods=['POST'])
 def log_data():
 	decoded_data = request.data.decode("utf-8")
-	print(f"decoded_data:\n{decoded_data}\n")
 
 	m = re.search(r'\?filename=(.*)&data=(.*)$', decoded_data)
 
@@ -140,14 +106,16 @@ def log_data():
 	else:
 		return {"server_response":"couldn't parse the query"}
 
-	print(f'data:{data}')
-	print(f'filename: {filename}')
 
-	#logging.basicConfig(filename=f'{filename}.log', encoding='utf-8', level=logging.INFO)
-	#logging.info(f'{data}')
 	with open(f'{filename}.txt', 'a') as f:
-		f.write(f'{data}\n')
+		try:
+			f.write(f'{data}\n')
+		except Exception as er:
+			return {"server_response":f"{er}"}
 
 	return {"server_response":"your data has been logged"}
 
 
+@app.route('/schedule', methods=['GET'])
+def schedule():
+	return {"9:00":"flex"}
