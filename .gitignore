@@ -1,1 +1,6 @@
 __pycache__/
+*.tmp
+*.txt
+*.log
+*.docx
+*.doc
