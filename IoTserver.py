@@ -2,10 +2,6 @@
 # Tests are made with microcontroller module STM32
 
 from flask import Flask, request
-import asyncio
-import python_weather as pw
-from datetime import datetime
-import logging
 from wakeonlan import send_magic_packet
 import random
 import re
@@ -22,37 +18,33 @@ token_db = ['ad34931a1b8984d54cc92a339f7a16946d65dc58c9704b9e472dc056e5eb4648',
 			'9d6cddfa80776fc8729cef0576842458467deb997d62edac1667d85d4b335fe7']
 
 
-# The coroutine is called to obtain weather. Called in "weather" endpoint
-async def async_get_weather():
-	async with pw.Client(unit=pw.METRIC) as cl:
-		weather = await cl.get('Tomsk')
-
-	return (weather.current.temperature, 
-			    weather.current.description,
-			    weather.current.date)
-
-
 app = Flask(__name__)
 
 
 # the endpoint for fetching current weather
 @app.route("/weather", methods=['GET'])
-def weather():
-	t, d, date = asyncio.run(async_get_weather())
+def get_weather():
 
-	return {'temp':t, 
-			'desc':d,
-			'date':date}
+	with open('weather.txt', 'r') as f:
+		try:
+			x = f.read()
+		except Exception as er:
+			return {"server_response":f'{er}'}			
+
+	return {"server_response":f'{x}'}
 
 
-# the endpoint for fetching current machine time
+
 @app.route("/time", methods=['GET'])
 def curr_time():
-	curr = datetime.now()
-	current_time = curr.strftime("%H:%M:%S")
-	d = {'current_server_time':current_time}
+	with open('time.txt', 'r') as f:
+		try:
+			x = f.read()
+		except Exception as er:
+			return {"server_response":f'{er}'}		
 
-	return d
+	return {"server_response":f'{x}'}
+
 
 
 @app.route('/get_token', methods=['GET'])
@@ -63,11 +55,11 @@ def get_token():
 	return {"generated_token":f"{current_token}"}
 
 
+
 @app.route('/wake', methods=['POST'])
 def wake():
 	decoded_data = request.data.decode("utf-8")
 
-	# Parse request data
 	m = re.search(r'\?token=(.*)&mac=(.*)', decoded_data)
 
 	if m:
@@ -94,7 +86,6 @@ def wake():
 
 	
 
-
 @app.route('/log_data', methods=['POST'])
 def log_data():
 	decoded_data = request.data.decode("utf-8")
@@ -116,6 +107,13 @@ def log_data():
 	return {"server_response":"your data has been logged"}
 
 
+
 @app.route('/schedule', methods=['GET'])
 def schedule():
-	return {"9:00":"flex"}
+	with open('schedule.txt', 'r') as f:
+		try:
+			x = f.read()
+		except Exception as er:
+			return {"server_response":f'{er}'}			
+
+	return {"server_response":f'{x}'}
