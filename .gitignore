@@ -1,6 +1,7 @@
 __pycache__/
 *.tmp
 *.txt
+!requiremets.txt
 *.log
 *.docx
 *.doc
